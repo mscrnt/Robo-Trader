@@ -1,46 +1,48 @@
-# Robo Trader (Paper) – DeepSeek + Alpaca
+# Robo Trader — DeepSeek/Ollama + Alpaca (Paper default • Live opt‑in • Auto‑exec)
 
-> ⚠️ **Educational / Research Use.** This project places **paper** trades only. It is **not financial advice.** You are responsible for compliance with your broker’s ToS and local laws.
+> ⚠️ **Educational / Research Use.** This project can **automatically place trades**. It defaults to **paper** trading; switching to **live** is entirely controlled by your `.env`. This is **not financial advice**. You are responsible for compliance with your broker’s ToS and local laws.
 
 ## Overview
 
-An end‑to‑end, Dockerized **robo trader** that runs daily, generates a risk‑aware trade plan using a local LLM (**DeepSeek**), produces a human‑readable report, and executes **paper orders** via **Alpaca Paper API** after manual approval.
+An end‑to‑end, Dockerized **robo trader** that runs daily, generates a risk‑aware trade plan using a local LLM (**DeepSeek via Ollama**), produces a human‑readable report, and—when enabled—**automatically executes** orders via Alpaca (**paper by default, live opt‑in**). Includes a **Flask UI** to review account state (equity, cash, PnL), positions, orders, signals, and generated plans, plus controls to **pause/resume** trading at runtime.
 
 **Key capabilities**
 
 * Data ingest: prices, events (earnings/splits/dividends), news headlines, SEC filings digests
 * Factor/Signal engine: momentum, RSI, MACD, gap/volume, earnings drift, simple news sentiment
-* Risk & sizing: per‑name caps, sector caps, gross/net exposure, volatility‑targeted sizing
-* Backtest sanity window: rolling 60/252 trading days
-* Plan & Report: `trade_plan.json` + `report.md` artifacts, Slack/Email push
-* Execution (paper): require **explicit approval** before placing Alpaca paper orders
-* Auditability: inputs, scores, orders, fills, and metrics persisted
+* Risk & sizing: per‑name caps, sector caps, gross/net exposure, volatility‑targeted sizing, circuit breakers
+* Backtest sanity: rolling 60/252 trading‑day metrics (Sharpe, hit‑rate, max DD, turnover)
+* Plan & Report: `trade_plan.json` + `report.md` artifacts; optional Slack/Email push
+* **Auto‑execution**: controlled by `.env`; **paper** or **live**; idempotent orders & fill reconciliation
+* **Runtime controls**: `GLOBAL_KILL_SWITCH` (pause), daily drawdown halt, UI pause/resume
+* **Flask UI**: dashboard, positions, orders, signals, latest plan/report, settings banner for mode/guards
 
 ## Architecture
 
 ```
 trader/
   services/
-    api/            # FastAPI: approve/run, artifacts, health
-    scheduler/      # APScheduler cron: 06:00 America/Los_Angeles
-    ingest/         # vendors -> Postgres cache (prices/news/events)
-    signals/        # factor calc + model scoring (DeepSeek-assisted)
-    risk/           # sizing, constraints, optimizer, breakers
-    broker/         # alpaca_paper adapter (positions/orders/fills)
-    reporter/       # report emit (md/json) + Slack/Email
-  libs/             # shared utils (logging, tz, io, validation)
-  configs/          # .env.example, strategy.yaml, universe.yaml
-  storage/          # plans/, reports/, backtests/, logs/
-  docker/           # Dockerfiles per service
+    api/        # FastAPI: /run /plan/latest /positions /orders /health /metrics
+    web/        # Flask UI: overview, positions, orders, signals, plan, settings, pause/resume
+    scheduler/  # APScheduler cron: 06:00 America/Los_Angeles (pre‑market)
+    ingest/     # vendors -> Postgres cache (prices/news/events)
+    signals/    # factor calc + LLM rationale (Ollama via env)
+    risk/       # sizing, constraints, optimizer, circuit breakers
+    broker/     # Alpaca adapter (paper/live switch via env)
+    reporter/   # report emit (md/json) + Slack/Email
+  libs/         # shared utils (logging, tz, io, validation, schemas)
+  configs/      # .env.example, strategy.yaml, universe.yaml
+  storage/      # plans/, reports/, backtests/, logs/
+  docker/       # Dockerfiles per service
   docker-compose.yml
 ```
 
 ## Prerequisites
 
 * Docker & Docker Compose
-* Alpaca **Paper** account + API keys
+* Alpaca **Paper** account + API keys (Live optional)
+* Local **Ollama** server (or any OpenAI‑compatible HTTP endpoint)
 * (Optional) Slack/Email webhook for notifications
-* Local DeepSeek server (OpenAI‑compatible API preferred) or any HTTP inference endpoint
 
 ## Quick Start
 
@@ -48,31 +50,58 @@ trader/
 
    ```bash
    cp configs/.env.example .env
-   # Fill in ALPACA_*, DB_URL, REDIS_URL, TZ, and DeepSeek vars below
+   # Fill in ALPACA_*, DB_URL, REDIS_URL, TZ, and LLM_* vars (Ollama)
    ```
-2. **Edit strategy & universe** (simple examples below) and save to `configs/`.
+2. **Edit strategy & universe** (examples below) and save to `configs/`.
 3. **Boot services**
 
    ```bash
    docker compose up -d --build
    ```
-4. **Verify**
+4. **Open the UI**
 
-   * API health: `GET http://localhost:8080/health`
-   * Dry run: `POST http://localhost:8080/run` (generates plan, no execution)
-5. **Approve (paper only)**
+   * Flask UI: [http://localhost:8080](http://localhost:8080)
+   * API (if exposed): [http://localhost:8000/health](http://localhost:8000/health)
+5. **Run a cycle**
 
-   * `POST http://localhost:8080/approve` with the `plan_id` from `/run` or `/plan/latest`
+   * From UI: click **Run now**
+   * Or via API: `POST http://localhost:8000/run`
+
+### Execution modes & switches
+
+* **Default**: paper + auto‑exec
+* Disable auto‑exec (generate plan/report only): set `AUTO_EXECUTE=false`
+* Enable **live** execution:
+
+  ```env
+  TRADING_MODE=live
+  LIVE_TRADING_ENABLED=true
+  LIVE_CONFIRM_PHRASE=I_UNDERSTAND_THE_RISKS
+  ```
+* **Emergency pause** (no orders placed): set `GLOBAL_KILL_SWITCH=true` (also available via UI Pause)
 
 ## Configuration
 
-**.env (example)**
+### `.env` (example)
 
 ```env
-# Broker
+# Execution & mode
+AUTO_EXECUTE=true
+TRADING_MODE=paper                 # paper | live
+LIVE_TRADING_ENABLED=false         # set true to allow live
+LIVE_CONFIRM_PHRASE=I_UNDERSTAND_THE_RISKS
+GLOBAL_KILL_SWITCH=false           # runtime pause
+
+# Alpaca
 ALPACA_KEY_ID=your_key
 ALPACA_SECRET_KEY=your_secret
-ALPACA_BASE_URL=https://paper-api.alpaca.markets
+ALPACA_PAPER_BASE=https://paper-api.alpaca.markets
+ALPACA_LIVE_BASE=https://api.alpaca.markets
+
+# LLM (Ollama or compatible)
+LLM_BASE_URL=http://ollama:11434
+LLM_MODEL=deepseek-r1:latest
+LLM_API_KEY=local-or-empty
 
 # Time & storage
 TZ=America/Los_Angeles
@@ -88,15 +117,9 @@ RISK_MAX_SINGLE_NAME=0.02
 RISK_GROSS_MAX=0.60
 RISK_NET_MAX=0.40
 DAILY_DRAWDOWN_HALT=0.02
-GLOBAL_KILL_SWITCH=false
-
-# LLM (DeepSeek)
-LLM_BASE_URL=http://deepseek:8000/v1
-LLM_MODEL=deepseek-chat
-LLM_API_KEY=local-or-empty
 ```
 
-**`configs/strategy.yaml` (sample)**
+### `configs/strategy.yaml` (sample)
 
 ```yaml
 universe: configs/universe.yaml
@@ -126,7 +149,7 @@ backtest:
   windows: [60, 252]
 ```
 
-**`configs/universe.yaml` (sample)**
+### `configs/universe.yaml` (sample)
 
 ```yaml
 tickers:
@@ -142,51 +165,53 @@ filters:
 exclusions: []
 ```
 
-## API Endpoints
+## API Endpoints (core)
 
-* `GET /health` → uptime & versions
-* `POST /run` → run daily DAG (ingest → signals → risk → backtest → plan → report). Returns `{ plan_id }`.
-* `GET /plan/latest` → latest plan + report links
-* `POST /approve` → `{ plan_id }` → places **paper** orders via Alpaca
-* `GET /positions` → Alpaca paper positions snapshot
+* `GET  /health` → uptime & versions
+* `POST /run` → run daily DAG (ingest → signals → risk → backtest → plan → (auto‑exec) → report). Returns `{ plan_id }`.
+* `GET  /plan/latest` → latest plan + report links
+* `GET  /positions` → Alpaca positions snapshot
+* `GET  /orders` → recent orders & fills
+* `POST /control/pause` / `POST /control/resume` → toggle `GLOBAL_KILL_SWITCH`
 
 **Example (curl)**
 
 ```bash
-curl -X POST http://localhost:8080/run
-curl http://localhost:8080/plan/latest
-curl -X POST http://localhost:8080/approve -H 'Content-Type: application/json' \
-  -d '{"plan_id":"2025-09-13T06-00-01Z"}'
+curl -X POST http://localhost:8000/run
+curl       http://localhost:8000/plan/latest
+curl       http://localhost:8000/positions
+curl -X POST http://localhost:8000/control/pause
 ```
 
 ## Scheduler
 
 * Default: **06:00 America/Los\_Angeles** (pre‑market) using APScheduler in `services/scheduler`.
-* Override via env `SCHED_CRON` or an ISO next‑run.
+* Override via env `SCHED_CRON` or schedule config.
 
 ## Artifacts & Storage
 
-* `storage/plans/YYYY-MM-DD/plan.json`
+* `storage/plans/YYYY-MM-DD/trade_plan.json`
 * `storage/reports/YYYY-MM-DD/report.md`
 * `storage/backtests/YYYY-MM-DD/*.json`
 * `storage/logs/*.ndjson`
+* `storage/orders/YYYY-MM-DD/orders.csv`, `storage/fills/YYYY-MM-DD/fills.csv`
 
 ## Development & Testing
 
 * **Tests**: `pytest` (unit + broker integration against Alpaca paper)
 * **Style**: `ruff` + `black`
-* **Observability**: JSON logs, Prometheus metrics exposed via `/metrics`
+* **Observability**: JSON logs, Prometheus metrics via `/metrics`
 
 ## Extensibility
 
-* Add a factor: drop a module in `services/signals/factors/` and register in `strategy.yaml`.
-* New broker: implement `Broker` interface (`positions`, `balances`, `place`, `cancel`, `stream`) in `services/broker/`.
+* Add a factor: implement in `services/signals/factors/` and register in `strategy.yaml`.
+* New broker: implement `Broker` interface (`positions`, `balances`, `place`, `cancel`, `stream`) under `services/broker/`.
 
 ## Security & Compliance
 
 * Keep keys in `.env` or Docker secrets; never commit secrets.
 * Prefer official APIs to scraping; respect vendor ToS.
-* Enforce **paper‑only** until you intentionally toggle to live (not included by default).
+* **Live trading** requires explicit `.env` toggles as shown above.
 
 ## Disclaimer
 

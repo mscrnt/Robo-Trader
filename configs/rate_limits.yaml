@@ -1,0 +1,55 @@
+# Rate Limiting Configuration
+# Controls API calls to respect service limits
+
+# LLM API Limits (Ollama - no limits)
+llm:
+  calls_per_minute: 1000  # No limit on Ollama
+  batch_size: 20          # Can batch more with local Ollama
+  timeout_seconds: 60     # Longer timeout OK for local
+  enable_caching: false   # No need to cache with local server
+
+# Alpha Vantage Limits (Free tier: 25 calls/DAY!)
+alpha_vantage:
+  calls_per_minute: 1    # Extremely limited
+  calls_per_day: 25      # Only 25 per day!
+  batch_size: 1          # One symbol at a time
+  max_symbols: 10        # Only use for top 10 most important
+
+# Finnhub Limits (30 calls/second, much better!)
+finnhub:
+  calls_per_second: 30   # 30/sec is generous
+  calls_per_minute: 1800 # Theoretical max
+  batch_size: 10         # Can batch more
+  delay_ms: 100          # 100ms between calls to be safe
+
+# Polygon Limits (Free tier: 5 calls/min)
+polygon:
+  calls_per_minute: 5
+  batch_size: 1          # One at a time for free tier
+  delay_seconds: 12      # 12 seconds between calls
+
+# YFinance (2000/hour = 33/min, best free option!)
+yfinance:
+  calls_per_hour: 2000
+  calls_per_day: 48000
+  calls_per_minute: 33
+  batch_size: 50         # Can batch many symbols
+  delay_ms: 0            # No delay needed
+
+# MCP Provider Settings
+mcp:
+  enabled: false        # Disable until properly configured
+  max_symbols: 10       # Max symbols per run
+  interval_seconds: 5   # Wait between calls
+
+# Signal Generation
+signals:
+  use_llm_rationale: true   # Enable - Ollama has no limits
+  batch_llm_calls: false    # No need to batch with local Ollama
+  max_concurrent: 5         # Can process multiple in parallel
+
+# General Settings
+general:
+  respect_limits: true      # Always respect rate limits
+  fallback_on_error: true   # Use fallback providers on errors
+  log_api_calls: true       # Log all API calls for monitoring

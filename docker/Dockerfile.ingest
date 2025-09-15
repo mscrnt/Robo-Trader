@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    sqlalchemy psycopg2-binary \
+    yfinance pandas numpy \
+    alpaca-py pyyaml python-dotenv \
+    httpx requests \
+    feedparser beautifulsoup4 minio
+
+COPY libs/ ./libs/
+COPY configs/ ./configs/
+COPY services/ingest/ ./services/ingest/
+
+CMD ["python", "-u", "services/ingest/startup.py"]

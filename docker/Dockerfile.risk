@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    sqlalchemy psycopg2-binary \
+    numpy pandas pyyaml python-dotenv \
+    yfinance
+
+COPY libs/ ./libs/
+COPY configs/ ./configs/
+COPY services/risk/ ./services/risk/
+
+CMD ["python", "-u", "services/risk/risk.py"]

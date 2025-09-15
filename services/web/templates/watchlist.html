@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Dynamic Watchlist{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">📰 News-Driven Watchlist</h2>
+
+            <!-- RSS Feed Status -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">RSS Feed Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Active Feeds:</strong> {{ feeds.get('active_feeds', 9) }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Last Update:</strong> {{ feeds.get('last_update', 'Recently') }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Articles Processed:</strong> {{ feeds.get('articles_count', 0) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Watchlist Table -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Discovered Symbols ({{ watchlist|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if watchlist %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Score</th>
+                                    <th>Mentions</th>
+                                    <th>Source</th>
+                                    <th>Categories</th>
+                                    <th>Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in watchlist %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.symbol }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="width: 100px;">
+                                            <div class="progress-bar
+                                                {% if item.score > 0.7 %}bg-success
+                                                {% elif item.score > 0.4 %}bg-warning
+                                                {% else %}bg-danger{% endif %}"
+                                                role="progressbar"
+                                                style="width: {{ (item.score * 100)|round }}%">
+                                                {{ (item.score * 100)|round(1) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ item.mention_count }}</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ item.source|default('RSS', true) }}</small>
+                                    </td>
+                                    <td>
+                                        {% if item.categories %}
+                                            {% for cat in item.categories[:3] %}
+                                                <span class="badge bg-info">{{ cat }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ item.last_seen|default('Recently', true) }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="/signals?symbol={{ item.symbol }}" class="btn btn-sm btn-outline-primary">
+                                            View Signals
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        No symbols in watchlist. The system will discover symbols from RSS feeds during the next update.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- News Discovery Info -->
+            <div class="card mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <p>This watchlist is <strong>dynamically generated</strong> from news sources:</p>
+                    <ul>
+                        <li>📡 <strong>9 RSS feeds</strong> monitored (Seeking Alpha, MarketWatch, Yahoo, CNBC, etc.)</li>
+                        <li>🤖 <strong>LLM Analysis</strong> using deepseek-v2:16b extracts ticker symbols from articles</li>
+                        <li>📊 <strong>Weighted Scoring</strong> based on mention frequency and recency</li>
+                        <li>📈 <strong>No hardcoded symbols</strong> - purely news-driven discovery</li>
+                        <li>🔄 <strong>Updates every 15 minutes</strong> during market hours</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

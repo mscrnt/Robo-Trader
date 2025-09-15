@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir alpaca-py redis python-dotenv sqlalchemy psycopg2-binary alembic
+
+COPY libs/ ./libs/
+COPY services/broker/ ./services/broker/
+
+# Initialize database before starting broker
+CMD ["sh", "-c", "python libs/init_db.py && python -u services/broker/alpaca_broker.py"]

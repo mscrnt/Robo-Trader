@@ -1,0 +1,64 @@
+# Alpha Vantage MCP Configuration
+
+# MCP Server Details
+mcp_server:
+  url: "https://mcp.alphavantage.co/mcp"
+  timeout: 120
+  retry_attempts: 3
+
+# Data Functions to Use
+functions:
+  price_data:
+    - TIME_SERIES_DAILY
+    - TIME_SERIES_INTRADAY
+  quotes:
+    - GLOBAL_QUOTE
+  company:
+    - OVERVIEW
+    - EARNINGS
+  news:
+    - NEWS_SENTIMENT
+  technical:
+    - RSI
+    - MACD
+    - SMA
+
+# LLM MCP Integration Settings
+llm_mcp:
+  # Prompt template for MCP operations
+  system_prompt: |
+    You have access to Alpha Vantage MCP server for market data.
+    Always use the MCP tools to fetch real-time and historical data.
+    Return structured JSON responses only.
+
+  # Temperature for data fetching (keep low)
+  temperature: 0.1
+
+  # Max tokens for response
+  max_tokens: 4096
+
+# Rate Limiting
+rate_limits:
+  calls_per_minute: 5  # Free tier limit
+  batch_size: 5        # Symbols per batch
+
+# Data Quality Settings
+data_quality:
+  min_bars_required: 20
+  max_age_hours: 24
+  validate_ohlc: true
+  handle_splits: true
+
+# Fallback Strategy
+fallback:
+  enabled: true
+  providers:
+    - yfinance
+    - finnhub
+    - polygon
+
+# Caching
+cache:
+  enabled: true
+  ttl_minutes: 15
+  location: /tmp/mcp_cache

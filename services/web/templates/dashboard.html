@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Robo Trader{% endblock %}
+
+{% block content %}
+<h1>📊 News-Driven Trading Dashboard</h1>
+
+{% if control.trading_mode == 'live' and control.live_enabled %}
+<div class="alert alert-danger">
+    <strong>⚠️ LIVE TRADING MODE ACTIVE</strong> - Real money at risk
+</div>
+{% endif %}
+
+<!-- News Discovery Status -->
+<div class="card">
+    <h2>📰 News Discovery</h2>
+    <div style="display: flex; justify-content: space-around;">
+        <div>
+            <strong>RSS Feeds Active:</strong> 9
+        </div>
+        <div>
+            <strong>Symbols Discovered:</strong> {{ watchlist_count|default(0, true) }}
+        </div>
+        <div>
+            <strong>LLM Model:</strong> deepseek-v2:16b
+        </div>
+    </div>
+    <p style="margin-top: 1rem; color: #666;">
+        💡 System automatically discovers trading opportunities from news feeds - no hardcoded symbols!
+    </p>
+</div>
+
+<div class="card">
+    <h2>System Status</h2>
+    <p>
+        Mode: <span class="badge badge-{{ 'live' if control.trading_mode == 'live' else 'paper' }}">
+            {{ control.trading_mode|upper }}
+        </span>
+        {% if control.paused %}
+        <span class="badge badge-live">PAUSED</span>
+        {% endif %}
+    </p>
+    <p>Auto-Execute: {{ 'Enabled' if control.auto_execute else 'Disabled' }}</p>
+    <p>Portfolio Value: ${{ "{:,.2f}".format(total_value) }}</p>
+    <p>Unrealized P&L:
+        <span class="{{ 'text-success' if total_pl >= 0 else 'text-danger' }}">
+            ${{ "{:,.2f}".format(total_pl) }}
+        </span>
+    </p>
+
+    <div style="margin-top: 1rem;">
+        {% if control.paused %}
+        <button class="btn btn-success" onclick="resumeTrading()">Resume Trading</button>
+        {% else %}
+        <button class="btn btn-danger" onclick="pauseTrading()">Pause Trading</button>
+        {% endif %}
+        <button class="btn btn-primary" onclick="triggerRun()">Run Pipeline Now</button>
+    </div>
+</div>
+
+{% if latest_plan %}
+<div class="card">
+    <h2>Latest Trade Plan</h2>
+    <p>Date: {{ latest_plan.plan_date }}</p>
+    <p>Mode: {{ latest_plan.mode }}</p>
+    <p>Orders: {{ latest_plan.orders|length }}</p>
+    <p>Status:
+        {% if latest_plan.executed %}
+            <span class="text-success">Executed</span>
+        {% else %}
+            <span class="text-warning">Pending</span>
+        {% endif %}
+    </p>
+    <a href="/plan" class="btn btn-primary">View Details</a>
+</div>
+{% endif %}
+
+{% if positions %}
+<div class="card">
+    <h2>Top Positions</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Quantity</th>
+                <th>Market Value</th>
+                <th>Unrealized P&L</th>
+                <th>% Change</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pos in positions %}
+            <tr>
+                <td>{{ pos.symbol }}</td>
+                <td>{{ pos.qty }}</td>
+                <td>${{ "{:,.2f}".format(pos.market_value) }}</td>
+                <td class="{{ 'text-success' if pos.unrealized_pl >= 0 else 'text-danger' }}">
+                    ${{ "{:,.2f}".format(pos.unrealized_pl) }}
+                </td>
+                <td class="{{ 'text-success' if pos.unrealized_plpc >= 0 else 'text-danger' }}">
+                    {{ "{:.2f}".format(pos.unrealized_plpc * 100) }}%
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="/positions" class="btn btn-primary" style="margin-top: 1rem;">View All Positions</a>
+</div>
+{% endif %}
+
+<script>
+function pauseTrading() {
+    fetch('/control/pause', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            alert('Trading paused');
+            location.reload();
+        })
+        .catch(error => alert('Error: ' + error));
+}
+
+function resumeTrading() {
+    fetch('/control/resume', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            alert('Trading resumed');
+            location.reload();
+        })
+        .catch(error => alert('Error: ' + error));
+}
+
+function triggerRun() {
+    if (confirm('Trigger pipeline run now?')) {
+        fetch('/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Pipeline run triggered: ' + data.status);
+        })
+        .catch(error => alert('Error: ' + error));
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+# Trading Strategy Configuration
+
+# Universe selection criteria
+universe:
+  min_price: 2.0
+  max_price: 500.0
+  min_avg_volume: 1000000  # Minimum average daily volume
+  min_market_cap: 1000000000  # $1B minimum market cap
+  excluded_sectors: []
+  max_stocks: 100
+
+# Factor weights for signal generation
+factors:
+  momentum_12_1:
+    weight: 0.25
+    description: "12-month momentum excluding last month"
+    enabled: true
+
+  rsi_14:
+    weight: 0.15
+    description: "14-day RSI reversal signal"
+    enabled: true
+    oversold: 30
+    overbought: 70
+
+  macd:
+    weight: 0.20
+    description: "MACD crossover signal"
+    enabled: true
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+
+  volume_surge:
+    weight: 0.15
+    description: "Unusual volume detection"
+    enabled: true
+    lookback_days: 20
+    threshold_multiplier: 2.0
+
+  earnings_drift:
+    weight: 0.15
+    description: "Post-earnings announcement drift"
+    enabled: true
+    days_after_earnings: 30
+
+  news_sentiment:
+    weight: 0.10
+    description: "LLM-based news sentiment analysis"
+    enabled: true
+    lookback_hours: 72
+
+# Risk management parameters
+risk:
+  max_position_size: 0.02  # 2% per position
+  max_sector_exposure: 0.25  # 25% max per sector
+  max_gross_exposure: 0.60  # 60% gross exposure
+  max_net_exposure: 0.40  # 40% net exposure
+  stop_loss_pct: 0.05  # 5% stop loss
+  take_profit_pct: 0.15  # 15% take profit
+  position_sizing_method: "equal_weight"  # or "kelly", "risk_parity"
+
+# Execution parameters
+execution:
+  order_type: "market"  # or "limit"
+  time_in_force: "day"  # or "gtc", "ioc", "fok"
+  slippage_bps: 10  # Expected slippage in basis points
+  min_order_size: 100  # Minimum USD value per order
+  max_order_size: 50000  # Maximum USD value per order
+
+# Backtesting parameters
+backtest:
+  lookback_days: 252  # 1 year of data
+  rebalance_frequency: "daily"  # or "weekly", "monthly"
+  transaction_cost_bps: 5  # Transaction costs in basis points
+  min_sharpe_ratio: 0.5  # Minimum acceptable Sharpe ratio
+  max_drawdown: 0.20  # Maximum acceptable drawdown
+
+# Circuit breakers
+circuit_breakers:
+  daily_loss_limit: 0.02  # 2% daily loss limit
+  weekly_loss_limit: 0.05  # 5% weekly loss limit
+  monthly_loss_limit: 0.10  # 10% monthly loss limit
+  pause_after_consecutive_losses: 3  # Pause after 3 consecutive losing days
+  volatility_halt_threshold: 3.0  # Halt if VIX > 3x average

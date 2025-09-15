@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Orders - Robo Trader{% endblock %}
+
+{% block content %}
+<h1>Orders History</h1>
+
+<div class="card">
+    {% if orders %}
+    <table>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Quantity</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Filled Qty</th>
+                <th>Avg Price</th>
+                <th>Submitted At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.order_id[:8] }}...</td>
+                <td><strong>{{ order.symbol }}</strong></td>
+                <td>
+                    <span class="badge {{ 'badge-success' if order.side == 'buy' else 'badge-danger' }}">
+                        {{ order.side|upper }}
+                    </span>
+                </td>
+                <td>{{ order.qty }}</td>
+                <td>{{ order.order_type|upper }}</td>
+                <td>
+                    <span class="badge badge-{{ 'success' if order.status == 'filled' else 'warning' if order.status == 'pending' else 'danger' }}">
+                        {{ order.status|upper }}
+                    </span>
+                </td>
+                <td>{{ order.filled_qty if order.filled_qty else 0 }}</td>
+                <td>${{ "{:.2f}".format(order.filled_avg_price) if order.filled_avg_price else "N/A" }}</td>
+                <td>{{ order.submitted_at if order.submitted_at else order.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No orders found.</p>
+    {% endif %}
+</div>
+{% endblock %}

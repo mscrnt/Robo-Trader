@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Trade Plan - Robo Trader{% endblock %}
+
+{% block content %}
+<h1>Latest Trade Plan</h1>
+
+{% if plan %}
+<div class="card">
+    <h2>Plan Details</h2>
+    <p><strong>Date:</strong> {{ plan.plan_date }}</p>
+    <p><strong>Mode:</strong>
+        <span class="badge badge-{{ 'live' if plan.mode == 'live' else 'paper' }}">
+            {{ plan.mode|upper }}
+        </span>
+    </p>
+    <p><strong>Status:</strong>
+        {% if plan.executed %}
+            <span class="badge badge-success">Executed</span>
+        {% elif plan.approved %}
+            <span class="badge badge-warning">Approved</span>
+        {% else %}
+            <span class="badge badge-secondary">Pending</span>
+        {% endif %}
+    </p>
+    <p><strong>Created:</strong> {{ plan.created_at }}</p>
+</div>
+
+<div class="card">
+    <h2>Risk Metrics</h2>
+    {% if plan.risk_metrics %}
+    <ul>
+        <li><strong>Gross Exposure:</strong> {{ "{:.1%}".format(plan.risk_metrics.gross_exposure) if plan.risk_metrics.gross_exposure else "0%" }}</li>
+        <li><strong>Net Exposure:</strong> {{ "{:.1%}".format(plan.risk_metrics.net_exposure) if plan.risk_metrics.net_exposure else "0%" }}</li>
+        <li><strong>Position Count:</strong> {{ plan.risk_metrics.position_count if plan.risk_metrics.position_count else 0 }}</li>
+        <li><strong>Max Position Size:</strong> {{ "{:.1%}".format(plan.risk_metrics.max_position_pct) if plan.risk_metrics.max_position_pct else "N/A" }}</li>
+    </ul>
+    {% else %}
+    <p>No risk metrics available.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Orders ({{ plan.orders|length if plan.orders else 0 }})</h2>
+    {% if plan.orders %}
+    <table>
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Quantity</th>
+                <th>Type</th>
+                <th>Stop Loss</th>
+                <th>Take Profit</th>
+                <th>Confidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in plan.orders %}
+            <tr>
+                <td><strong>{{ order.symbol }}</strong></td>
+                <td>
+                    <span class="badge {{ 'badge-success' if order.side == 'buy' else 'badge-danger' }}">
+                        {{ order.side|upper }}
+                    </span>
+                </td>
+                <td>{{ order.qty }}</td>
+                <td>{{ order.order_type|default('market')|upper }}</td>
+                <td>${{ "{:.2f}".format(order.stop_loss) if order.stop_loss else "N/A" }}</td>
+                <td>${{ "{:.2f}".format(order.take_profit) if order.take_profit else "N/A" }}</td>
+                <td>{{ "{:.0%}".format(order.confidence) if order.confidence else "N/A" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No orders in this plan.</p>
+    {% endif %}
+</div>
+
+{% if plan.notes %}
+<div class="card">
+    <h2>Notes</h2>
+    <p>{{ plan.notes }}</p>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <p>No trade plan available. Run the pipeline to generate a plan.</p>
+    <button class="btn btn-primary" onclick="triggerRun()">Run Pipeline Now</button>
+</div>
+
+<script>
+function triggerRun() {
+    if (confirm('Trigger pipeline run now?')) {
+        fetch('/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Pipeline run triggered: ' + data.status);
+            setTimeout(() => location.reload(), 2000);
+        })
+        .catch(error => alert('Error: ' + error));
+    }
+}
+</script>
+{% endif %}
+
+{% endblock %}

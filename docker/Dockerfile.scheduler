@@ -1,0 +1,10 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir apscheduler requests pytz python-dotenv
+
+COPY services/scheduler/ ./services/scheduler/
+
+CMD ["python", "-u", "services/scheduler/scheduler.py"]

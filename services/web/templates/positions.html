@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Positions - Robo Trader{% endblock %}
+
+{% block content %}
+<h1>Current Positions</h1>
+
+<div class="card">
+    {% if positions %}
+    <table>
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Quantity</th>
+                <th>Entry Price</th>
+                <th>Current Price</th>
+                <th>Market Value</th>
+                <th>Unrealized P&L</th>
+                <th>% Change</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pos in positions %}
+            <tr>
+                <td><strong>{{ pos.symbol }}</strong></td>
+                <td>{{ pos.qty }}</td>
+                <td>${{ "{:.2f}".format(pos.avg_entry_price) if pos.avg_entry_price else "N/A" }}</td>
+                <td>${{ "{:.2f}".format(pos.current_price) if pos.current_price else "N/A" }}</td>
+                <td>${{ "{:,.2f}".format(pos.market_value) if pos.market_value else 0 }}</td>
+                <td class="{{ 'text-success' if pos.unrealized_pl >= 0 else 'text-danger' }}">
+                    ${{ "{:,.2f}".format(pos.unrealized_pl) if pos.unrealized_pl else 0 }}
+                </td>
+                <td class="{{ 'text-success' if pos.unrealized_plpc >= 0 else 'text-danger' }}">
+                    {{ "{:.2f}".format((pos.unrealized_plpc * 100) if pos.unrealized_plpc else 0) }}%
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No positions currently held.</p>
+    {% endif %}
+</div>
+{% endblock %}

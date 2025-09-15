@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    sqlalchemy psycopg2-binary \
+    httpx python-dotenv
+
+COPY libs/ ./libs/
+COPY services/reporter/ ./services/reporter/
+
+CMD ["python", "-u", "services/reporter/reporter.py"]

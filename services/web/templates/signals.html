@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Trading Signals - Robo Trader{% endblock %}
+
+{% block content %}
+<h1>📊 Trading Signals</h1>
+
+<!-- Signal Summary Card -->
+<div class="card">
+    <h2>Signal Overview</h2>
+    <div class="stats-row">
+        <div class="stat">
+            <span class="label">Total Signals</span>
+            <span class="value">{{ signals|length }}</span>
+        </div>
+        <div class="stat">
+            <span class="label">Buy Signals</span>
+            <span class="value text-success">{{ signals|selectattr('action', 'equalto', 'buy')|list|length }}</span>
+        </div>
+        <div class="stat">
+            <span class="label">Hold Signals</span>
+            <span class="value text-warning">{{ signals|selectattr('action', 'equalto', 'hold')|list|length }}</span>
+        </div>
+        <div class="stat">
+            <span class="label">Sell Signals</span>
+            <span class="value text-danger">{{ signals|selectattr('action', 'equalto', 'sell')|list|length }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Signals Table -->
+<div class="card">
+    <h2>Current Signals (News-Driven)</h2>
+    {% if signals %}
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Action</th>
+                    <th>Score</th>
+                    <th>Momentum</th>
+                    <th>RSI</th>
+                    <th>MACD</th>
+                    <th>Volume</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for signal in signals %}
+                <tr>
+                    <td><strong>{{ signal.symbol }}</strong></td>
+                    <td>
+                        <span class="badge {{ 'badge-success' if signal.action == 'buy' else 'badge-danger' if signal.action == 'sell' else 'badge-warning' }}">
+                            {{ signal.action|upper }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar {{ 'bg-success' if signal.score > 0.6 else 'bg-danger' if signal.score < 0.4 else 'bg-warning' }}"
+                                 style="width: {{ (signal.score * 100)|round }}%">
+                                {{ (signal.score * 100)|round(1) }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if signal.factors and signal.factors.momentum is defined %}
+                            {{ (signal.factors.momentum * 100)|round(1) }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if signal.factors and signal.factors.rsi is defined %}
+                            {{ signal.factors.rsi|round(1) }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if signal.factors and signal.factors.macd_histogram is defined %}
+                            {{ signal.factors.macd_histogram|round(3) }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if signal.factors and signal.factors.volume_surge is defined %}
+                            {{ signal.factors.volume_surge|round(2) }}x
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ signal.timestamp|default('Recent', true) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No signals generated yet. Run the pipeline to generate signals based on the news-driven watchlist.</p>
+    {% endif %}
+</div>
+
+<!-- Signal Generation Info -->
+<div class="card info-card">
+    <h3>How Signals Are Generated</h3>
+    <ol>
+        <li>📰 <strong>RSS feeds</strong> provide real-time news on market movers</li>
+        <li>🤖 <strong>LLM (deepseek-v2:16b)</strong> extracts ticker symbols from news</li>
+        <li>📈 <strong>Technical indicators</strong> calculated: Momentum, RSI, MACD, Volume</li>
+        <li>💯 <strong>Composite score</strong> generated (0.0 to 1.0)</li>
+        <li>🎯 Scores > 0.6 trigger <span class="text-success">BUY</span> signals</li>
+        <li>⚠️ Scores < 0.4 trigger <span class="text-danger">SELL</span> signals</li>
+    </ol>
+</div>
+
+<style>
+.stats-row {
+    display: flex;
+    justify-content: space-around;
+    margin: 1rem 0;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat .label {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.stat .value {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.progress-bar-container {
+    width: 100px;
+    height: 20px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: bold;
+}
+
+.badge-success { background: #28a745; color: white; }
+.badge-warning { background: #ffc107; color: black; }
+.badge-danger { background: #dc3545; color: white; }
+
+.info-card {
+    background: #f8f9fa;
+    border-left: 4px solid #17a2b8;
+}
+</style>
+{% endblock %}

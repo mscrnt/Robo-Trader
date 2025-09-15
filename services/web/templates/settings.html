@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Robo Trader{% endblock %}
+
+{% block content %}
+<h1>System Settings</h1>
+
+{% if env_vars.TRADING_MODE == 'live' and env_vars.LIVE_TRADING_ENABLED == 'true' %}
+<div class="alert alert-danger">
+    <strong>⚠️ WARNING:</strong> Live trading mode is configured. Real money is at risk!
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Trading Configuration</h2>
+    <table>
+        <tr>
+            <th>Trading Mode</th>
+            <td>
+                <span class="badge badge-{{ 'live' if env_vars.TRADING_MODE == 'live' else 'paper' }}">
+                    {{ env_vars.TRADING_MODE|upper }}
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <th>Auto Execute</th>
+            <td>
+                <span class="badge badge-{{ 'success' if env_vars.AUTO_EXECUTE == 'true' else 'secondary' }}">
+                    {{ 'ENABLED' if env_vars.AUTO_EXECUTE == 'true' else 'DISABLED' }}
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <th>Live Trading Enabled</th>
+            <td>
+                <span class="badge badge-{{ 'danger' if env_vars.LIVE_TRADING_ENABLED == 'true' else 'secondary' }}">
+                    {{ env_vars.LIVE_TRADING_ENABLED|upper }}
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <th>Live Confirm Phrase</th>
+            <td>
+                <span class="badge badge-{{ 'success' if env_vars.LIVE_CONFIRM_PHRASE else 'warning' }}">
+                    {{ 'SET' if env_vars.LIVE_CONFIRM_PHRASE else 'NOT SET' }}
+                </span>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="card">
+    <h2>System Status</h2>
+    {% if status %}
+    <table>
+        <tr>
+            <th>Trading Paused</th>
+            <td>
+                <span class="badge badge-{{ 'danger' if status.paused else 'success' }}">
+                    {{ 'YES' if status.paused else 'NO' }}
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <th>Trading Mode</th>
+            <td>{{ status.trading_mode|upper }}</td>
+        </tr>
+        <tr>
+            <th>Auto Execute</th>
+            <td>{{ 'Enabled' if status.auto_execute else 'Disabled' }}</td>
+        </tr>
+    </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Risk Limits</h2>
+    {% if status and status.risk_limits %}
+    <table>
+        <tr>
+            <th>Max Single Position</th>
+            <td>{{ "{:.1%}".format(status.risk_limits.max_single_name) }}</td>
+        </tr>
+        <tr>
+            <th>Max Gross Exposure</th>
+            <td>{{ "{:.0%}".format(status.risk_limits.gross_max) }}</td>
+        </tr>
+        <tr>
+            <th>Max Net Exposure</th>
+            <td>{{ "{:.0%}".format(status.risk_limits.net_max) }}</td>
+        </tr>
+        <tr>
+            <th>Daily Drawdown Halt</th>
+            <td>{{ "{:.1%}".format(status.risk_limits.daily_drawdown_halt) }}</td>
+        </tr>
+    </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>LLM Configuration (Two-Model Pipeline)</h2>
+    <table>
+        <tr>
+            <th>LLM Base URL</th>
+            <td>{{ env_vars.LLM_BASE_URL if env_vars.LLM_BASE_URL else 'Not configured' }}</td>
+        </tr>
+        <tr>
+            <th>Summary Model (Fast)</th>
+            <td>
+                <span class="badge badge-info">{{ env_vars.LLM_SUMMARY_MODEL }}</span>
+                <small> - News ticker extraction</small>
+            </td>
+        </tr>
+        <tr>
+            <th>Selector Model (Accurate)</th>
+            <td>
+                <span class="badge badge-primary">{{ env_vars.LLM_SELECTOR_MODEL }}</span>
+                <small> - Final trade selection</small>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Data Sources</h2>
+    <table>
+        <tr>
+            <th>RSS Feeds</th>
+            <td><span class="badge badge-success">9 Active</span></td>
+        </tr>
+        <tr>
+            <th>YFinance</th>
+            <td><span class="badge badge-success">Active (2000/hr)</span></td>
+        </tr>
+        <tr>
+            <th>SEC EDGAR</th>
+            <td><span class="badge badge-success">Active (10,135 companies)</span></td>
+        </tr>
+        <tr>
+            <th>Alpha Vantage</th>
+            <td>{{ env_vars.ALPHA_VANTAGE_API_KEY }} <small>(25/day limit)</small></td>
+        </tr>
+        <tr>
+            <th>Finnhub</th>
+            <td>{{ env_vars.FINNHUB_API_KEY }} <small>(30/sec if configured)</small></td>
+        </tr>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Controls</h2>
+    <p>
+        {% if status and status.paused %}
+        <button class="btn btn-success" onclick="resumeTrading()">Resume Trading</button>
+        {% else %}
+        <button class="btn btn-danger" onclick="pauseTrading()">Pause Trading</button>
+        {% endif %}
+    </p>
+    <p class="text-muted">
+        Note: Configuration changes require editing the .env file and restarting services.
+    </p>
+</div>
+
+<script>
+function pauseTrading() {
+    if (confirm('Are you sure you want to pause trading?')) {
+        fetch('/control/pause', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                alert('Trading paused');
+                location.reload();
+            })
+            .catch(error => alert('Error: ' + error));
+    }
+}
+
+function resumeTrading() {
+    if (confirm('Are you sure you want to resume trading?')) {
+        fetch('/control/resume', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                alert('Trading resumed');
+                location.reload();
+            })
+            .catch(error => alert('Error: ' + error));
+    }
+}
+</script>
+
+{% endblock %}

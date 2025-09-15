@@ -1,0 +1,173 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: trader
+      POSTGRES_DB: trader
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trader"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+      - ./configs/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+      - ./configs:/app/configs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    env_file: .env
+    depends_on:
+      - api
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.scheduler
+    env_file: .env
+    depends_on:
+      - api
+      - db
+      - redis
+    volumes:
+      - ./storage:/app/storage
+      - ./configs:/app/configs
+    restart: unless-stopped
+
+  ingest:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ingest
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped
+
+  signals:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.signals
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ingest:
+        condition: service_started
+    volumes:
+      - ./storage:/app/storage
+      - ./configs:/app/configs
+    restart: unless-stopped
+
+  risk:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.risk
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./storage:/app/storage
+      - ./configs:/app/configs
+    restart: unless-stopped
+
+  broker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.broker
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped
+
+  reporter:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.reporter
+    env_file: .env
+    depends_on:
+      - db
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped
+
+volumes:
+  dbdata:
+  redis-data:
+  minio-data:

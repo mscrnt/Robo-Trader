@@ -1,0 +1,77 @@
+# RSS Feed Configuration
+# Config-driven design for easy feed management without code changes
+
+feeds:
+  # Seeking Alpha - High quality financial news
+  - name: sa_all_news
+    url: https://seekingalpha.com/market_currents.xml
+    weight: 1.0
+    category: news
+
+  - name: sa_wall_street_breakfast
+    url: https://seekingalpha.com/tag/wall-st-breakfast.xml
+    weight: 0.8
+    category: macro
+
+  - name: sa_latest_articles
+    url: https://seekingalpha.com/feed.xml
+    weight: 0.6
+    category: analysis
+
+  # MarketWatch - Broad market coverage
+  - name: marketwatch_top_stories
+    url: https://feeds.content.dowjones.io/public/rss/mw_topstories
+    weight: 0.7
+    category: news
+
+  - name: marketwatch_market_pulse
+    url: https://feeds.content.dowjones.io/public/rss/mw_marketpulse
+    weight: 0.6
+    category: realtime
+
+  # Yahoo Finance
+  - name: yahoo_top_stories
+    url: https://finance.yahoo.com/rss/topstories
+    weight: 0.7
+    category: news
+
+  # CNBC
+  - name: cnbc_top_news
+    url: https://www.cnbc.com/id/100003114/device/rss/rss.html
+    weight: 0.6
+    category: news
+
+  # Investing.com
+  - name: investing_stock_news
+    url: https://www.investing.com/rss/news_25.rss
+    weight: 0.5
+    category: news
+
+  - name: investing_economic
+    url: https://www.investing.com/rss/news_14.rss
+    weight: 0.5
+    category: macro
+
+# Per-ticker feeds (will be expanded with symbols from universe)
+ticker_feeds:
+  - name: sa_ticker_combined
+    url_template: https://seekingalpha.com/api/sa/combined/{symbol}.xml
+    weight: 1.2  # Higher weight for ticker-specific news
+    max_symbols: 30  # Limit to top 30 symbols to avoid rate limits
+
+# Polling configuration
+polling:
+  interval_minutes: 15
+  timeout_seconds: 20
+  max_retries: 3
+  backoff_factor: 2.0
+
+# Rate limiting
+rate_limits:
+  requests_per_minute: 30
+  cooldown_seconds: 2
+
+# Deduplication
+deduplication:
+  hash_fields: ['title', 'link']
+  ttl_hours: 48
